@@ -13,7 +13,8 @@ local SAVE_FILE_NAME = "zeion_verified_key.txt"
 
 -- 🔥 Script Here
 local function RunMainScript()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
+ print( Zeion X Reaper)
+	--loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
 end
 
 local function GetHWID()
@@ -745,4 +746,3 @@ end
 
 Build()
 
-print(Zeion X Reaper)
