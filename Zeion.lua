@@ -1,4 +1,4 @@
--- Project Key System Zeion X Reaper 08
+-- Project Key System Zeion X Reaper 09
 
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
@@ -554,7 +554,7 @@ local function Build()
 	verifyBtn.Size = UDim2.new(0.5, -4, 1, 0)
 	verifyBtn.Position = UDim2.new(0.5, 4, 0, 0)
 	verifyBtn.BackgroundColor3 = Configuration.Colors.Primary
-	verifyBtn.Text = "Verify"
+	verifyBtn.Text = "Redeem"
 	verifyBtn.TextColor3 = Color3.new(1, 1, 1)
 	verifyBtn.Font = Enum.Font.GothamBold
 	verifyBtn.TextSize = 13
