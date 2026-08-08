@@ -14,7 +14,7 @@ local SAVE_FILE_NAME = "zeion_verified_key.txt"
 -- ===================================================
 local function RunMainScript()
     -- แปะ loadstring สคริปต์หลักของ Zeion Hub ตรงนี้
-    loadstring(game:HttpGet("https://zeionhub.xyz"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
 end
 
 -- ===================================================
