@@ -1,214 +1,214 @@
+-- Credit : Reaper Hub
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local Camera = workspace.CurrentCamera
-local DrawingLib, _ = pcall(function() return Drawing.new("Line") end)
+local Camera = workspace.CurrentCamera or workspace:WaitForChild("Camera")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+
+-- Check Drawing API
+local DrawingLib = (type(Drawing) ~= "nil" and Drawing.new)
 
 --------------------------------------------------
--- 1. CONFIGURATION & STATES
+-- 1. SETTINGS & STATES
 --------------------------------------------------
-local IMAGE_ASSET_ID = "rbxassetid://6031075931" 
-local ESP_Players = {}
 local States = {
-	Aimbot = false, LockLevel = 1, TargetPart = "Head", UseFOV = true, FOVRadius = 150,
-	HitboxEnabled = false, HitboxSize = 10, HitboxTransparency = 0.7,
-	ESP_Highlight = false, ESP_Tracers = false, ESP_NameTags = false,
-	HomingSpeed = 80, HomingTurnRate = 0.1
+    Aimbot = false, LockLevel = 1, TargetPart = "Head", UseFOV = true, FOVRadius = 150,
+    HitboxEnabled = false, HitboxSize = 10, HitboxTransparency = 0.7,
+    ESP_Highlight = false, ESP_Tracers = false, ESP_NameTags = false
 }
 local SmoothnessMap = {[1] = 0.15, [2] = 0.40, [3] = 1.00}
+local ESP_Players = {}
 
 --------------------------------------------------
--- 2. CORE LOGIC FUNCTIONS
+-- 2. UI CONSTRUCTION (สร้างก่อนเพื่อให้รันติดแน่นอน)
+--------------------------------------------------
+local gui = Instance.new("ScreenGui", PlayerGui)
+gui.Name = "ReaperProject_Final"
+gui.ResetOnSpawn = false
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromOffset(620, 440)
+main.Position = UDim2.new(0.5, -310, 0.5, -220)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true -- ถ้าลากไม่ได้ให้เปลี่ยนเป็นสคริปต์ลากมือ
+
+local mainCorner = Instance.new("UICorner", main)
+mainCorner.CornerRadius = UDim.new(0, 15)
+
+local sidebar = Instance.new("Frame", main)
+sidebar.Size = UDim2.new(0, 140, 1, -60)
+sidebar.Position = UDim2.fromOffset(15, 50)
+sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0, 10)
+local sideLayout = Instance.new("UIListLayout", sidebar)
+sideLayout.Padding = UDim.new(0, 5)
+
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(1, -180, 1, -60)
+content.Position = UDim2.fromOffset(165, 50)
+content.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+Instance.new("UICorner", content).CornerRadius = UDim.new(0, 10)
+
+-- FOV Circle
+local fovCircle = Instance.new("Frame", gui)
+fovCircle.Size = UDim2.fromOffset(States.FOVRadius*2, States.FOVRadius*2)
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.BackgroundTransparency = 1
+fovCircle.Visible = false
+local fovStroke = Instance.new("UIStroke", fovCircle)
+fovStroke.Color = Color3.fromRGB(255, 50, 50)
+fovStroke.Thickness = 1.5
+Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
+
+--------------------------------------------------
+-- 3. LOGIC FUNCTIONS
 --------------------------------------------------
 local function GetClosestTarget()
-	local closestPlayer = nil
-	local shortestDistance = math.huge
-	local mousePos = UserInputService:GetMouseLocation()
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(States.TargetPart) then
-			local pos, onScreen = Camera:WorldToViewportPoint(player.Character[States.TargetPart].Position)
-			if onScreen then
-				local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-				if dist < (States.UseFOV and States.FOVRadius or math.huge) and dist < shortestDistance then
-					shortestDistance = dist
-					closestPlayer = player
-				end
-			end
-		end
-	end
-	return closestPlayer
+    local closest, shortestDist = nil, math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(States.TargetPart) then
+            local pos, onScreen = Camera:WorldToViewportPoint(p.Character[States.TargetPart].Position)
+            if onScreen then
+                local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                if dist < (States.UseFOV and States.FOVRadius or math.huge) and dist < shortestDist then
+                    shortestDist, closest = dist, p
+                end
+            end
+        end
+    end
+    return closest
 end
 
 local function UpdateHitboxes()
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and player.Character then
-			local root = player.Character:FindFirstChild("HumanoidRootPart")
-			if root then
-				if States.HitboxEnabled then
-					root.Size = Vector3.new(States.HitboxSize, States.HitboxSize, States.HitboxSize)
-					root.Transparency = States.HitboxTransparency
-					root.Color = Color3.fromRGB(255, 0, 0)
-					root.CanCollide = false
-				else
-					root.Size = Vector3.new(2, 2, 1)
-					root.Transparency = 1
-					root.CanCollide = true
-				end
-			end
-		end
-	end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local root = p.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                if States.HitboxEnabled then
+                    root.Size = Vector3.new(States.HitboxSize, States.HitboxSize, States.HitboxSize)
+                    root.Transparency = States.HitboxTransparency
+                    root.Color = Color3.fromRGB(255, 0, 0)
+                    root.CanCollide = false
+                else
+                    root.Size = Vector3.new(2, 2, 1)
+                    root.Transparency = 1
+                end
+            end
+        end
+    end
 end
 
-local function CreateESP(player)
-	if not DrawingLib or player == LocalPlayer or ESP_Players[player] then return end
-	local objects = {
-		Tracer = Drawing.new("Line"),
-		Name = Drawing.new("Text"),
-		Health = Drawing.new("Text")
-	}
-	objects.Tracer.Thickness = 1
-	objects.Tracer.Color = Color3.fromRGB(255, 50, 50)
-	objects.Name.Size = 14; objects.Name.Center = true; objects.Name.Outline = true
-	objects.Health.Size = 13; objects.Health.Center = true; objects.Health.Outline = true
-	ESP_Players[player] = objects
+local function CreateESP(p)
+    if not DrawingLib or p == LocalPlayer or ESP_Players[p] then return end
+    pcall(function()
+        ESP_Players[p] = {
+            Tracer = Drawing.new("Line"),
+            Name = Drawing.new("Text")
+        }
+        local obj = ESP_Players[p]
+        obj.Tracer.Visible = false; obj.Tracer.Thickness = 1; obj.Tracer.Color = Color3.new(1,0,0)
+        obj.Name.Visible = false; obj.Name.Size = 14; obj.Name.Center = true; obj.Name.Outline = true
+    end)
 end
 
 local function UpdateESP()
-	for player, objects in pairs(ESP_Players) do
-		local char = player.Character
-		local root = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChild("Humanoid")
-		if root and hum and hum.Health > 0 then
-			local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-			if onScreen then
-				if States.ESP_Tracers then
-					objects.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-					objects.Tracer.To = Vector2.new(pos.X, pos.Y); objects.Tracer.Visible = true
-				else objects.Tracer.Visible = false end
-				if States.ESP_NameTags then
-					local headPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
-					objects.Name.Position = Vector2.new(headPos.X, headPos.Y); objects.Name.Text = player.Name; objects.Name.Visible = true
-					objects.Health.Position = Vector2.new(headPos.X, headPos.Y + 15); objects.Health.Text = "HP: "..math.floor(hum.Health); objects.Health.Visible = true
-				else objects.Name.Visible = false; objects.Health.Visible = false end
-			else for _,o in pairs(objects) do o.Visible = false end end
-		else for _,o in pairs(objects) do o.Visible = false end end
-	end
+    for p, obj in pairs(ESP_Players) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            if onScreen then
+                if States.ESP_Tracers then
+                    obj.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+                    obj.Tracer.To = Vector2.new(pos.X, pos.Y); obj.Tracer.Visible = true
+                else obj.Tracer.Visible = false end
+                if States.ESP_NameTags then
+                    obj.Name.Position = Vector2.new(pos.X, pos.Y - 30); obj.Name.Text = p.Name; obj.Name.Visible = true
+                else obj.Name.Visible = false end
+            else obj.Tracer.Visible = false; obj.Name.Visible = false end
+        else obj.Tracer.Visible = false; obj.Name.Visible = false end
+    end
 end
 
 --------------------------------------------------
--- 3. UI CONSTRUCTION
+-- 4. UI BUILDER (Tabs & Toggles)
 --------------------------------------------------
-local gui = Instance.new("ScreenGui", PlayerGui); gui.Name = "ReaperProjectFinal"
-local main = Instance.new("Frame", gui); main.Size = UDim2.fromOffset(620, 440); main.Position = UDim2.new(0.5, -310, 0.5, -220); main.BackgroundColor3 = Color3.fromRGB(15, 15, 18); main.Active = true; main.Draggable = true
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 18)
-
-local fovCircle = Instance.new("Frame", gui); fovCircle.Size = UDim2.fromOffset(States.FOVRadius*2, States.FOVRadius*2); fovCircle.AnchorPoint = Vector2.new(0.5,0.5); fovCircle.BackgroundTransparency = 1; fovCircle.Visible = false
-local fovCorner = Instance.new("UICorner", fovCircle); fovCorner.CornerRadius = UDim.new(1,0)
-local fovStroke = Instance.new("UIStroke", fovCircle); fovStroke.Color = Color3.fromRGB(255, 50, 50); fovStroke.Thickness = 1.5
-
-local sidebar = Instance.new("Frame", main); sidebar.Size = UDim2.new(0, 140, 1, -65); sidebar.Position = UDim2.fromOffset(15, 50); sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-Instance.new("UIListLayout", sidebar).Padding = UDim.new(0, 6)
-local content = Instance.new("Frame", main); content.Size = UDim2.new(1, -180, 1, -65); content.Position = UDim2.fromOffset(165, 50); content.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-
 local panels = {}
 local function createTab(name, id)
-	local p = Instance.new("ScrollingFrame", content); p.Size = UDim2.new(1, -12, 1, -12); p.Position = UDim2.fromOffset(6, 6); p.BackgroundTransparency = 1; p.Visible = false; p.ScrollBarThickness = 4
-	local l = Instance.new("UIListLayout", p); l.Padding = UDim.new(0, 6)
-	panels[id] = p
-	local b = Instance.new("TextButton", sidebar); b.Size = UDim2.new(1, 0, 0, 34); b.BackgroundColor3 = Color3.fromRGB(32, 32, 38); b.Text = name; b.TextColor3 = Color3.fromRGB(240, 240, 240); b.Font = Enum.Font.Code
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-	b.MouseButton1Click:Connect(function()
-		for _, v in pairs(panels) do v.Visible = false end
-		p.Visible = true
-	end)
+    local p = Instance.new("ScrollingFrame", content)
+    p.Size = UDim2.new(1, -10, 1, -10)
+    p.BackgroundTransparency = 1
+    p.Visible = false
+    Instance.new("UIListLayout", p).Padding = UDim.new(0, 5)
+    panels[id] = p
+    
+    local b = Instance.new("TextButton", sidebar)
+    b.Size = UDim2.new(1, 0, 0, 35)
+    b.Text = name
+    b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    b.TextColor3 = Color3.white
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function()
+        for _, v in pairs(panels) do v.Visible = false end
+        p.Visible = true
+    end)
 end
 
-local function createToggle(panel, text, default, callback)
-	local state = default
-	local btn = Instance.new("TextButton", panel); btn.Size = UDim2.new(1, -8, 0, 34); btn.BackgroundColor3 = state and Color3.fromRGB(220, 40, 40) or Color3.fromRGB(32, 32, 38); btn.Text = text.." : "..(state and "ON" or "OFF"); btn.TextColor3 = Color3.fromRGB(240, 240, 240); btn.Font = Enum.Font.Code
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	btn.MouseButton1Click:Connect(function()
-		state = not state
-		btn.BackgroundColor3 = state and Color3.fromRGB(220, 40, 40) or Color3.fromRGB(32, 32, 38)
-		btn.Text = text.." : "..(state and "ON" or "OFF")
-		callback(state)
-	end)
+local function createToggle(panel, text, callback)
+    local state = false
+    local b = Instance.new("TextButton", panel)
+    b.Size = UDim2.new(1, 0, 0, 35)
+    b.Text = text .. " : OFF"
+    b.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    b.TextColor3 = Color3.white
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function()
+        state = not state
+        b.Text = text .. " : " .. (state and "ON" or "OFF")
+        b.BackgroundColor3 = state and Color3.fromRGB(200, 50, 50) or Color3.fromRGB(40, 40, 45)
+        callback(state)
+    end)
 end
 
--- สร้าง Tabs
-createTab("🎯 AIMBOT", "aim"); createTab("🚀 PROJECTILE", "proj"); createTab("📦 HITBOX", "hb"); createTab("👁 VISUALS", "vis"); createTab("⚡ MOVEMENT", "mov")
+createTab("🎯 AIMBOT", "aim")
+createTab("📦 HITBOX", "hb")
+createTab("👁 VISUALS", "vis")
 panels.aim.Visible = true
 
---------------------------------------------------
--- 4. TAB FEATURES (ครบทุกฟังก์ชัน)
---------------------------------------------------
--- Aimbot
-createToggle(panels.aim, "Aimbot System", false, function(s) States.Aimbot = s fovCircle.Visible = s and States.UseFOV end)
-createToggle(panels.aim, "Draw FOV", true, function(s) States.UseFOV = s fovCircle.Visible = States.Aimbot and s end)
-
--- Projectile (Homing)
-local projBtn = Instance.new("TextButton", panels.proj); projBtn.Size = UDim2.new(1, -8, 0, 34); projBtn.Text = "🔥 Fire Homing Bullet"; projBtn.BackgroundColor3 = Color3.fromRGB(32, 32, 38); projBtn.TextColor3 = Color3.white
-projBtn.MouseButton1Click:Connect(function()
-	local target = GetClosestTarget()
-	if not target or not LocalPlayer.Character then return end
-	local bullet = Instance.new("Part", workspace); bullet.Size = Vector3.new(1,1,3); bullet.Color = Color3.new(1,0,0); bullet.Material = Enum.Material.Neon; bullet.Anchored = true; bullet.CanCollide = false
-	bullet.CFrame = CFrame.new(LocalPlayer.Character.HumanoidRootPart.Position, target.Character.HumanoidRootPart.Position)
-	task.spawn(function()
-		for i=1, 200 do
-			if not bullet.Parent or not target.Character then break end
-			local dt = RunService.Heartbeat:Wait()
-			bullet.CFrame = bullet.CFrame:Lerp(CFrame.new(bullet.Position, target.Character.HumanoidRootPart.Position), 0.1) * CFrame.new(0,0,-2)
-			if (bullet.Position - target.Character.HumanoidRootPart.Position).Magnitude < 3 then break end
-		end
-		bullet:Destroy()
-	end)
-end)
-
--- Hitbox
-createToggle(panels.hb, "Hitbox Expander", false, function(s) States.HitboxEnabled = s end)
-
--- Visuals
-createToggle(panels.vis, "Tracers", false, function(s) States.ESP_Tracers = s end)
-createToggle(panels.vis, "Names", false, function(s) States.ESP_NameTags = s end)
-createToggle(panels.vis, "Highlight", false, function(s)
-	States.ESP_Highlight = s
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and p.Character then
-			local h = p.Character:FindFirstChild("HackerHighlight")
-			if s then if not h then h = Instance.new("Highlight", p.Character); h.Name = "HackerHighlight" end else if h then h:Destroy() end end
-		end
-	end
-end)
-
--- Movement
-local spdBtn = Instance.new("TextButton", panels.mov); spdBtn.Size = UDim2.new(1, -8, 0, 34); spdBtn.Text = "Speed 50"; spdBtn.BackgroundColor3 = Color3.fromRGB(32, 32, 38); spdBtn.TextColor3 = Color3.white
-spdBtn.MouseButton1Click:Connect(function() LocalPlayer.Character.Humanoid.WalkSpeed = 50 end)
+createToggle(panels.aim, "Aimbot", function(s) States.Aimbot = s fovCircle.Visible = s end)
+createToggle(panels.hb, "Hitbox", function(s) States.HitboxEnabled = s end)
+createToggle(panels.vis, "Tracers", function(s) States.ESP_Tracers = s end)
 
 --------------------------------------------------
--- 5. FINAL COMBINED LOOPS
+-- 5. LOOPS & SETUP
 --------------------------------------------------
 RunService.RenderStepped:Connect(function()
-	if States.Aimbot then
-		local t = GetClosestTarget()
-		if t then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, t.Character[States.TargetPart].Position), SmoothnessMap[States.LockLevel]) end
-	end
-	if DrawingLib then pcall(UpdateESP) end
-	if fovCircle.Visible then fovCircle.Position = UDim2.fromOffset(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) end
+    if States.Aimbot then
+        local t = GetClosestTarget()
+        if t and t.Character then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, t.Character[States.TargetPart].Position), SmoothnessMap[States.LockLevel])
+        end
+    end
+    if DrawingLib then pcall(UpdateESP) end
+    if fovCircle.Visible then
+        local m = UserInputService:GetMouseLocation()
+        fovCircle.Position = UDim2.fromOffset(m.X, m.Y)
+    end
 end)
 
 RunService.Heartbeat:Connect(function()
-	pcall(UpdateHitboxes)
+    pcall(UpdateHitboxes)
 end)
 
--- Setup Initial ESP
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.fromOffset(40, 40)
+toggleBtn.Position = UDim2.new(0, 10, 0.5, 0)
+toggleBtn.Text = "MENU"
+toggleBtn.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
+
 for _, p in ipairs(Players:GetPlayers()) do CreateESP(p) end
 Players.PlayerAdded:Connect(CreateESP)
 
--- Close/Toggle UI
-local toggleBtn = Instance.new("TextButton", gui); toggleBtn.Size = UDim2.fromOffset(50,50); toggleBtn.Position = UDim2.new(0,10,0.5,0); toggleBtn.Text = "💻"; toggleBtn.BackgroundColor3 = Color3.new(0,0,0); toggleBtn.TextColor3 = Color3.new(1,0,0)
-toggleBtn.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
+print("Project By Reaper Hub")
