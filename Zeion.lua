@@ -1,3 +1,5 @@
+-- Project Key System Zeion X Reaper 
+
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,17 +11,11 @@ local DATABASE_URL = "https://script-reaper-default-rtdb.asia-southeast1.firebas
 local GETKEY_URL = "https://zeiongetkey.vercel.app/"
 local SAVE_FILE_NAME = "zeion_verified_key.txt"
 
--- ===================================================
--- 🚀 ฟังก์ชันรันสคริปต์หลัก (ZEION HUB MAIN SCRIPT)
--- ===================================================
+-- 🔥 Script Here
 local function RunMainScript()
-    -- แปะ loadstring สคริปต์หลักของ Zeion Hub ตรงนี้
     loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
 end
 
--- ===================================================
--- 🟢 HWID & SAFE HTTP REQUEST HELPERS
--- ===================================================
 local function GetHWID()
     local success, hwidValue = pcall(function()
         return gethwid and gethwid() or nil
@@ -45,9 +41,7 @@ local function SafeHttpRequest(requestData)
     return nil
 end
 
--- ===================================================
--- 🔑 API & KEY CHECKING ENGINE
--- ===================================================
+
 local API = {}
 
 local AdminKeys = {
