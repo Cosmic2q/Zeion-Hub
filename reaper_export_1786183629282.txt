@@ -6,6 +6,9 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
+local DrawingLib, _ = pcall(function() return Drawing.new("Line") end)
+
+
 
 --------------------------------------------------
 -- CONFIGURATION & STATES
@@ -432,131 +435,117 @@ end)
 
 
 --------------------------------------------------
--- 4. VISUALS (ESP SYSTEM - FIXED)
+-- 4. VISUALS (ESP SYSTEM) - FIXED
 --------------------------------------------------
-local ESP_Players = {}
+local ESP_Players = {} -- ** แก้จุดที่หายไป **
 
--- ฟังก์ชันสร้าง Drawing Objects
 local function CreateESP(player)
-	if player == LocalPlayer then return end
-	
+	if not DrawingLib or player == LocalPlayer or ESP_Players[player] then return end
+
 	local objects = {
 		Tracer = Drawing.new("Line"),
 		Name = Drawing.new("Text"),
 		Health = Drawing.new("Text")
 	}
-	
-	-- ตั้งค่าเริ่มต้น (ไม่แสดงผลจนกว่าจะสั่งเปิด)
-	objects.Tracer.Visible = false
 	objects.Tracer.Thickness = 1
 	objects.Tracer.Color = Color3.fromRGB(255, 50, 50)
-	
-	objects.Name.Visible = false
 	objects.Name.Size = 14
 	objects.Name.Center = true
 	objects.Name.Outline = true
 	objects.Name.Color = Color3.fromRGB(255, 255, 255)
-	
-	objects.Health.Visible = false
 	objects.Health.Size = 13
 	objects.Health.Center = true
 	objects.Health.Outline = true
-	
 	ESP_Players[player] = objects
 end
 
--- ฟังก์ชันจัดการ Highlight (มองทะลุกำแพงแบบตัวแดง)
-local function ManageHighlight(player)
-	local char = player.Character
-	if char then
-		local hl = char:FindFirstChild("HackerHighlight")
-		if States.ESP_Highlight then
-			if not hl then
-				hl = Instance.new("Highlight")
-				hl.Name = "HackerHighlight"
-				hl.FillColor = Color3.fromRGB(255, 50, 50)
-				hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-				hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-				hl.Parent = char
-			end
-		elseif hl then
-			hl:Destroy()
-		end
+local function RemoveESP(player)
+	if ESP_Players[player] then
+		for _, obj in pairs(ESP_Players[player]) do obj:Remove() end
+		ESP_Players[player] = nil
 	end
 end
 
--- อัปเดตตำแหน่ง ESP ทุกเฟรม
 local function UpdateESP()
 	for player, objects in pairs(ESP_Players) do
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		local hum = char and char:FindFirstChild("Humanoid")
-		
-		if char and root and hum and hum.Health > 0 then
+		if root and hum and hum.Health > 0 then
 			local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-			
 			if onScreen then
-				-- Tracer
 				if States.ESP_Tracers then
 					objects.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
 					objects.Tracer.To = Vector2.new(pos.X, pos.Y)
 					objects.Tracer.Visible = true
 				else objects.Tracer.Visible = false end
 
-				-- Name & Health
 				if States.ESP_NameTags then
-					local headPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.5, 0))
+					local headPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
 					objects.Name.Position = Vector2.new(headPos.X, headPos.Y)
 					objects.Name.Text = player.Name
 					objects.Name.Visible = true
-					
 					objects.Health.Position = Vector2.new(headPos.X, headPos.Y + 15)
-					objects.Health.Text = "[" .. math.floor(hum.Health) .. " HP]"
+					objects.Health.Text = "HP: " .. math.floor(hum.Health)
 					objects.Health.Color = Color3.fromHSV(math.clamp(hum.Health/100, 0, 1) * 0.3, 1, 1)
 					objects.Health.Visible = true
-				else 
-					objects.Name.Visible = false 
-					objects.Health.Visible = false 
-				end
-			else
-				objects.Tracer.Visible = false
-				objects.Name.Visible = false
-				objects.Health.Visible = false
-			end
-		else
-			objects.Tracer.Visible = false
-			objects.Name.Visible = false
-			objects.Health.Visible = false
-		end
-		
-		-- จัดการ Highlight เสมอ (ป้องกันตัวละครโหลดใหม่แล้วหาย)
-		ManageHighlight(player)
+				else objects.Name.Visible = false objects.Health.Visible = false end
+			else objects.Tracer.Visible = false objects.Name.Visible = false objects.Health.Visible = false end
+		else objects.Tracer.Visible = false objects.Name.Visible = false objects.Health.Visible = false end
 	end
 end
 
--- Event ดักจับผู้เล่น
 Players.PlayerAdded:Connect(CreateESP)
-Players.PlayerRemoving:Connect(function(p)
-	if ESP_Players[p] then
-		for _, obj in pairs(ESP_Players[p]) do obj:Remove() end
-		ESP_Players[p] = nil
+Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in ipairs(Players:GetPlayers()) do CreateESP(p) end
+
+-- Toggle UI ESP
+createToggle(panels.Visuals, "Highlight Box ESP", false, function(state)
+	States.ESP_Highlight = state
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character then
+			local old = player.Character:FindFirstChild("HackerHighlight")
+			if state and not old then
+				local hl = Instance.new("Highlight")
+				hl.Name = "HackerHighlight"
+				hl.FillColor = Color3.fromRGB(255, 50, 50)
+				hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+				hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				hl.Parent = player.Character
+			elseif not state and old then old:Destroy() end
+		end
 	end
 end)
 
--- รันครั้งแรกสำหรับคนที่มีอยู่ในเซิร์ฟ
-for _, p in ipairs(Players:GetPlayers()) do CreateESP(p) end
+createToggle(panels.Visuals, "Tracer Lines", false, function(state) States.ESP_Tracers = state end)
+createToggle(panels.Visuals, "Name & Health Tags", false, function(state) States.ESP_NameTags = state end)
 
--- Toggle UI
-createToggle(panels.Visuals, "Highlight Box ESP", false, function(state)
-	States.ESP_Highlight = state
+--------------------------------------------------
+-- RENDER LOOP & UI FINAL SETUP
+--------------------------------------------------
+RunService.RenderStepped:Connect(function()
+	if States.Aimbot then
+		local closest = GetClosestTarget()
+		if closest and closest.Character and closest.Character:FindFirstChild(States.TargetPart) then
+			local pos = closest.Character[States.TargetPart].Position
+			Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), SmoothnessMap[States.LockLevel] or 0.15)
+		end
+	end
+    
+	if DrawingLib then
+		pcall(UpdateESP)
+	end
 end)
 
-createToggle(panels.Visuals, "Tracer Lines", false, function(state) 
-	States.ESP_Tracers = state 
+RunService.Heartbeat:Connect(function()
+	if States.HitboxEnabled then
+		pcall(UpdateHitboxes)
+	end
 end)
 
-createToggle(panels.Visuals, "Name & Health Tags", false, function(state) 
-	States.ESP_NameTags = state 
+-- ปุ่มปิด/เปิด UI
+toggle.MouseButton1Click:Connect(function()
+	main.Visible = not main.Visible
 end)
 
 
@@ -575,10 +564,10 @@ createButton(panels.Movement, "Reset Speed", function()
 end)
 
 --------------------------------------------------
--- RENDER LOOP (วางทับส่วนท้ายสุดของสคริปต์)
+-- RENDER LOOP (จุดที่ทำให้ระบบทำงาน)
 --------------------------------------------------
 RunService.RenderStepped:Connect(function()
-	-- 1. Aimbot Logic (อัปเดตการล็อคเป้า)
+	-- 1. Aimbot Logic
 	if States.Aimbot then
 		local closest = GetClosestTarget()
 		if closest and closest.Character and closest.Character:FindFirstChild(States.TargetPart) then
@@ -586,15 +575,17 @@ RunService.RenderStepped:Connect(function()
 			Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), SmoothnessMap[States.LockLevel] or 0.15)
 		end
 	end
-	
-	-- 2. ESP Drawing Update (ต้องมีบรรทัดนี้ ESP ถึงจะขยับตามคนอื่น)
-	UpdateESP()
+    
+	-- 2. ESP Update (ต้องมีอันนี้ เส้นถึงจะขยับตามคน)
+	if DrawingLib then
+		pcall(UpdateESP)
+	end
 end)
 
--- 3. Hitbox Refresh (ใช้ Heartbeat บังคับขนาดไว้ตลอดเวลา ป้องกันบั๊กแสดงไม่ครบ)
+-- 3. Hitbox Refresh (ต้องมีอันนี้ Hitbox ถึงจะขยาย)
 RunService.Heartbeat:Connect(function()
 	if States.HitboxEnabled then
-		UpdateHitboxes()
+		pcall(UpdateHitboxes)
 	end
 end)
 
