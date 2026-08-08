@@ -1,4 +1,4 @@
--- Project Key System Zeion X Reaper 07
+-- Project Key System Zeion X Reaper 08
 
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
@@ -153,7 +153,7 @@ local Icons = {
 	Info = "rbxassetid://94529541997278",
 	Copy = "rbxassetid://107485544510830",
 	ErrorFolder = "rbxassetid://113312905787220",
-	ZeionIcon = "rbxassetid://131279093559313"
+	ZeionIcon = "rbxassetid://136855823401268" -- 🟢 เปลี่ยนมาใช้โลโก้ใหม่ที่คุณต้องการแล้ว
 }
 
 local Configuration = {
@@ -346,7 +346,7 @@ local function Build()
 
 	local main = Instance.new("Frame")
 	main.Size = Configuration.Window.Size
-	main.Position = UDim2.new(0.5, 0, 0.5, 40)
+	main.Position = UDim2.new(0.5, 0, 0.5, 0)
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = Configuration.Colors.Bg
 	main.BackgroundTransparency = 0.2
