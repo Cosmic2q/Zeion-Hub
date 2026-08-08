@@ -1,0 +1,570 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
+
+--------------------------------------------------
+-- CONFIGURATION & STATES
+--------------------------------------------------
+-- ใส่ Asset ID รูปภาพจริง หรือเว้นเป็นรูปว่างไว้เพื่อป้องกัน Error
+local IMAGE_ASSET_ID = "rbxassetid://6031075931" 
+
+local States = {
+	-- Aimbot
+	Aimbot = false,
+	LockLevel = 1,
+	TargetPart = "Head",
+	UseFOV = true,
+	FOVRadius = 150,
+	
+	-- Hitbox
+	HitboxEnabled = false,
+	HitboxSize = 10,
+	HitboxTransparency = 0.7,
+
+	-- Visuals (ESP)
+	ESP_Highlight = false,
+	ESP_Tracers = false,
+	ESP_NameTags = false,
+	ESP_Chams = false,
+	ESP_Distance = false,
+
+	-- Projectile System
+	HomingSpeed = 80,
+	HomingTurnRate = 0.1
+}
+
+local SmoothnessMap = {
+	[1] = 0.15,
+	[2] = 0.40,
+	[3] = 1.00
+}
+
+--------------------------------------------------
+-- GUI CONTAINER & MAIN FRAME
+--------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "HackerSimulatorFixed"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+-- วงกลม FOV
+local fovCircle = Instance.new("Frame")
+fovCircle.Name = "FOVCircle"
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovCircle.Size = UDim2.fromOffset(States.FOVRadius * 2, States.FOVRadius * 2)
+fovCircle.BackgroundTransparency = 1
+fovCircle.Visible = false
+fovCircle.Parent = gui
+
+local fovCorner = Instance.new("UICorner")
+fovCorner.CornerRadius = UDim.new(1, 0)
+fovCorner.Parent = fovCircle
+
+local fovStroke = Instance.new("UIStroke")
+fovStroke.Color = Color3.fromRGB(255, 50, 50)
+fovStroke.Thickness = 1.5
+fovStroke.Transparency = 0.3
+fovStroke.Parent = fovCircle
+
+-- ปุ่มเปิด/ปิด UI (ปุ่มลอยซ้ายหน้าจอ)
+local toggle = Instance.new("TextButton")
+toggle.Name = "UIToggleButton"
+toggle.Size = UDim2.fromOffset(50, 50)
+toggle.Position = UDim2.new(0, 15, 0.5, -25)
+toggle.Text = "💻"
+toggle.TextSize = 22
+toggle.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+toggle.TextColor3 = Color3.fromRGB(255, 50, 50)
+toggle.Parent = gui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(1, 0)
+toggleCorner.Parent = toggle
+
+-- Main Frame
+local main = Instance.new("Frame")
+main.Name = "MainFrame"
+main.Size = UDim2.fromOffset(620, 440)
+main.Position = UDim2.new(0.5, -310, 0.5, -220)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+main.Active = true
+main.Draggable = true
+main.ClipsDescendants = true
+main.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 18)
+mainCorner.Parent = main
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(40, 40, 50)
+mainStroke.Thickness = 1.5
+mainStroke.Parent = main
+
+--------------------------------------------------
+-- MASCOT IMAGE
+--------------------------------------------------
+local characterImage = Instance.new("ImageLabel")
+characterImage.Name = "Mascot"
+characterImage.Size = UDim2.fromOffset(170, 170)
+characterImage.Position = UDim2.new(1, -115, 0, -55)
+characterImage.BackgroundTransparency = 1
+characterImage.Image = IMAGE_ASSET_ID
+characterImage.ScaleType = Enum.ScaleType.Fit
+characterImage.ZIndex = 10
+characterImage.Parent = main
+
+local mascotCorner = Instance.new("UICorner")
+mascotCorner.CornerRadius = UDim.new(0, 16)
+mascotCorner.Parent = characterImage
+
+task.spawn(function()
+	local floatTween = TweenService:Create(characterImage, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		Position = UDim2.new(1, -115, 0, -70),
+		Rotation = 3
+	})
+	floatTween:Play()
+end)
+
+--------------------------------------------------
+-- TITLE & TOP BUTTONS
+--------------------------------------------------
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -200, 0, 45)
+title.Position = UDim2.fromOffset(20, 0)
+title.BackgroundTransparency = 1
+title.Text = "💻 HACKER SIMULATOR PRO"
+title.TextColor3 = Color3.fromRGB(255, 60, 60)
+title.Font = Enum.Font.Code
+title.TextSize = 15
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+-- ปุ่มปิด (Close)
+local close = Instance.new("TextButton")
+close.Name = "CloseButton"
+close.Size = UDim2.fromOffset(32, 32)
+close.Position = UDim2.new(1, -45, 0, 8)
+close.Text = "✕"
+close.TextColor3 = Color3.fromRGB(255, 255, 255)
+close.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+close.Font = Enum.Font.Code
+close.ZIndex = 11
+close.Parent = main
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 10)
+closeCorner.Parent = close
+
+-- ปุ่มย่อ UI (Minimize)
+local minimize = Instance.new("TextButton")
+minimize.Name = "MinimizeButton"
+minimize.Size = UDim2.fromOffset(32, 32)
+minimize.Position = UDim2.new(1, -82, 0, 8)
+minimize.Text = "—"
+minimize.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimize.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+minimize.Font = Enum.Font.Code
+minimize.TextSize = 14
+minimize.ZIndex = 11
+minimize.Parent = main
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 10)
+minCorner.Parent = minimize
+
+--------------------------------------------------
+-- SIDEBAR & PANELS
+--------------------------------------------------
+local sidebar = Instance.new("Frame")
+sidebar.Name = "Sidebar"
+sidebar.Size = UDim2.new(0, 140, 1, -65)
+sidebar.Position = UDim2.fromOffset(15, 50)
+sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+sidebar.Parent = main
+
+local sideCorner = Instance.new("UICorner")
+sideCorner.CornerRadius = UDim.new(0, 12)
+sideCorner.Parent = sidebar
+
+local sideLayout = Instance.new("UIListLayout")
+sideLayout.Padding = UDim.new(0, 6)
+sideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+sideLayout.Parent = sidebar
+
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Size = UDim2.new(1, -180, 1, -65)
+content.Position = UDim2.fromOffset(165, 50)
+content.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+content.Parent = main
+
+local contentCorner = Instance.new("UICorner")
+contentCorner.CornerRadius = UDim.new(0, 12)
+contentCorner.Parent = content
+
+--------------------------------------------------
+-- MINIMIZE SYSTEM
+--------------------------------------------------
+local isMinimized = false
+local normalSize = UDim2.fromOffset(620, 440)
+local minimizedSize = UDim2.fromOffset(620, 48)
+
+minimize.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	local targetSize = isMinimized and minimizedSize or normalSize
+	TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+	sidebar.Visible = not isMinimized
+	content.Visible = not isMinimized
+	characterImage.Visible = not isMinimized
+	minimize.Text = isMinimized and "▢" or "—"
+end)
+
+--------------------------------------------------
+-- TABS & BUILDERS
+--------------------------------------------------
+local tabs = {
+	{"🎯 AIMBOT", "Aimbot"},
+	{"🚀 PROJECTILE", "Projectile"},
+	{"📦 HITBOX", "Hitbox"},
+	{"👁 VISUALS", "Visuals"},
+	{"⚡ MOVEMENT", "Movement"},
+	{"🚀 TELEPORT", "Teleport"}
+}
+
+local panels = {}
+
+local function createPanel(id)
+	local panel = Instance.new("ScrollingFrame")
+	panel.Name = id .. "Panel"
+	panel.Size = UDim2.new(1, -12, 1, -12)
+	panel.Position = UDim2.fromOffset(6, 6)
+	panel.BackgroundTransparency = 1
+	panel.BorderSizePixel = 0
+	panel.ScrollBarThickness = 4
+	panel.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 50)
+	panel.Visible = false
+	panel.Parent = content
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 6)
+	layout.Parent = panel
+
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		panel.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y + 12)
+	end)
+
+	return panel
+end
+
+for _, tab in ipairs(tabs) do
+	panels[tab[2]] = createPanel(tab[2])
+end
+
+local function createButton(panel, text, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, -8, 0, 34)
+	button.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+	button.TextColor3 = Color3.fromRGB(240, 240, 240)
+	button.Font = Enum.Font.Code
+	button.TextSize = 11
+	button.Text = text
+	button.Parent = panel
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = button
+
+	button.MouseButton1Click:Connect(callback)
+	return button
+end
+
+-- สวิตช์เปิด/ปิด (ON = สีแดง 🔥 / OFF = สีเทา)
+local function createToggle(panel, text, default, callback)
+	local state = default
+	local btn = createButton(panel, text .. " : " .. (state and "ON" or "OFF"), function() end)
+	btn.BackgroundColor3 = state and Color3.fromRGB(220, 40, 40) or Color3.fromRGB(32, 32, 38)
+	
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		btn.BackgroundColor3 = state and Color3.fromRGB(220, 40, 40) or Color3.fromRGB(32, 32, 38)
+		btn.Text = text .. " : " .. (state and "ON" or "OFF")
+		callback(state)
+	end)
+	return btn
+end
+
+--------------------------------------------------
+-- PANELS SETUP
+--------------------------------------------------
+-- 1. AIMBOT
+createToggle(panels.Aimbot, "Aimbot System", false, function(state)
+	States.Aimbot = state
+	fovCircle.Visible = state and States.UseFOV
+end)
+
+local lockNames = {[1] = "1 (Soft)", [2] = "2 (Medium)", [3] = "3 (Hard)"}
+local lockBtn = createButton(panels.Aimbot, "Lock Force : Level " .. lockNames[States.LockLevel], function() end)
+lockBtn.MouseButton1Click:Connect(function()
+	States.LockLevel = States.LockLevel % 3 + 1
+	lockBtn.Text = "Lock Force : Level " .. lockNames[States.LockLevel]
+end)
+
+local partBtn = createButton(panels.Aimbot, "Target Part : " .. States.TargetPart, function() end)
+partBtn.MouseButton1Click:Connect(function()
+	States.TargetPart = (States.TargetPart == "Head") and "HumanoidRootPart" or "Head"
+	partBtn.Text = "Target Part : " .. (States.TargetPart == "Head" and "Head" or "Torso")
+end)
+
+createToggle(panels.Aimbot, "Draw FOV Circle", true, function(state)
+	States.UseFOV = state
+	fovCircle.Visible = States.Aimbot and state
+end)
+
+local fovBtn = createButton(panels.Aimbot, "FOV Size : " .. States.FOVRadius .. "px", function() end)
+fovBtn.MouseButton1Click:Connect(function()
+	States.FOVRadius = States.FOVRadius >= 300 and 100 or States.FOVRadius + 50
+	fovBtn.Text = "FOV Size : " .. States.FOVRadius .. "px"
+	fovCircle.Size = UDim2.fromOffset(States.FOVRadius * 2, States.FOVRadius * 2)
+end)
+
+-- 2. PROJECTILE
+local function GetClosestTarget()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (player.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Magnitude
+			if dist < shortestDistance then
+				shortestDistance = dist
+				closestPlayer = player
+			end
+		end
+	end
+	return closestPlayer
+end
+
+createButton(panels.Projectile, "🔥 Fire Homing Bullet", function()
+	local char = LocalPlayer.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+	local targetPlayer = GetClosestTarget()
+	if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+
+	local bullet = Instance.new("Part")
+	bullet.Size = Vector3.new(1, 1, 3)
+	bullet.Color = Color3.fromRGB(255, 50, 50)
+	bullet.Material = Enum.Material.Neon
+	bullet.CanCollide = false
+	bullet.Anchored = true
+	bullet.CFrame = CFrame.new(char.HumanoidRootPart.Position + Vector3.new(0, 2, 0), targetPlayer.Character.HumanoidRootPart.Position)
+	bullet.Parent = workspace
+
+	task.spawn(function()
+		local lifetime = 0
+		while bullet and bullet.Parent and lifetime < 5 do
+			local dt = RunService.Heartbeat:Wait()
+			lifetime = lifetime + dt
+			if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local targetPart = targetPlayer.Character.HumanoidRootPart
+				bullet.CFrame = bullet.CFrame:Lerp(CFrame.new(bullet.Position, targetPart.Position), States.HomingTurnRate) * CFrame.new(0, 0, -States.HomingSpeed * dt)
+				if (bullet.Position - targetPart.Position).Magnitude < 3 then
+					bullet:Destroy()
+					break
+				end
+			else
+				bullet.CFrame = bullet.CFrame * CFrame.new(0, 0, -States.HomingSpeed * dt)
+			end
+		end
+		if bullet and bullet.Parent then bullet:Destroy() end
+	end)
+end)
+
+--------------------------------------------------
+-- 3. HITBOX (Optimized & Forced Version)
+--------------------------------------------------
+local function UpdateHitboxes()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character then
+			local root = player.Character:FindFirstChild("HumanoidRootPart")
+			if root then
+				if States.HitboxEnabled then
+					-- เช็คก่อนเปลี่ยนค่าเพื่อประหยัด CPU (Optimization)
+					if root.Size.X ~= States.HitboxSize then
+						root.Size = Vector3.new(States.HitboxSize, States.HitboxSize, States.HitboxSize)
+						root.Transparency = States.HitboxTransparency
+						root.Material = Enum.Material.ForceField
+						root.Color = Color3.fromRGB(255, 0, 0)
+						root.CanCollide = false -- กันเราเดินชนแล้วกระเด็น
+					end
+				else
+					-- คืนค่าปกติ
+					if root.Size.X ~= 2 then
+						root.Size = Vector3.new(2, 2, 1)
+						root.Transparency = 1
+						root.Material = Enum.Material.Plastic
+						root.CanCollide = true
+					end
+				end
+			end
+		end
+	end
+end
+
+createToggle(panels.Hitbox, "Hitbox Expander", false, function(state)
+	States.HitboxEnabled = state
+	if not state then UpdateHitboxes() end -- รีเซ็ตทันทีที่ปิด
+end)
+
+-- เพิ่มปุ่มปรับขนาด (Size Adjuster)
+local sizeBtn = createButton(panels.Hitbox, "Hitbox Size : " .. States.HitboxSize, function() end)
+sizeBtn.MouseButton1Click:Connect(function()
+	-- วนลูปขนาด 10 -> 15 -> 20 -> 25 -> 30 -> กลับมา 10
+	States.HitboxSize = (States.HitboxSize >= 30) and 10 or States.HitboxSize + 5
+	sizeBtn.Text = "Hitbox Size : " .. States.HitboxSize
+end)
+
+
+--------------------------------------------------
+-- 4. VISUALS (ESP SYSTEM)
+--------------------------------------------------
+local ESP_Players = {}
+
+local function CreateESP(player)
+	if ESP_Players[player] or player == LocalPlayer then return end
+	local objects = {
+		Tracer = Drawing.new("Line"),
+		Name = Drawing.new("Text"),
+		Health = Drawing.new("Text")
+	}
+	objects.Tracer.Thickness = 1
+	objects.Tracer.Color = Color3.fromRGB(255, 50, 50)
+	objects.Name.Size = 14
+	objects.Name.Center = true
+	objects.Name.Outline = true
+	objects.Name.Color = Color3.fromRGB(255, 255, 255)
+	objects.Health.Size = 13
+	objects.Health.Center = true
+	objects.Health.Outline = true
+	ESP_Players[player] = objects
+end
+
+local function RemoveESP(player)
+	if ESP_Players[player] then
+		for _, obj in pairs(ESP_Players[player]) do obj:Remove() end
+		ESP_Players[player] = nil
+	end
+end
+
+local function UpdateESP()
+	for player, objects in pairs(ESP_Players) do
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChild("Humanoid")
+		if root and hum and hum.Health > 0 then
+			local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+			if onScreen then
+				if States.ESP_Tracers then
+					objects.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+					objects.Tracer.To = Vector2.new(pos.X, pos.Y)
+					objects.Tracer.Visible = true
+				else objects.Tracer.Visible = false end
+
+				if States.ESP_NameTags then
+					local headPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
+					objects.Name.Position = Vector2.new(headPos.X, headPos.Y)
+					objects.Name.Text = player.Name
+					objects.Name.Visible = true
+					objects.Health.Position = Vector2.new(headPos.X, headPos.Y + 15)
+					objects.Health.Text = "HP: " .. math.floor(hum.Health)
+					objects.Health.Color = Color3.fromHSV(math.clamp(hum.Health/100, 0, 1) * 0.3, 1, 1)
+					objects.Health.Visible = true
+				else objects.Name.Visible = false objects.Health.Visible = false end
+			else objects.Tracer.Visible = false objects.Name.Visible = false objects.Health.Visible = false end
+		else objects.Tracer.Visible = false objects.Name.Visible = false objects.Health.Visible = false end
+	end
+end
+
+Players.PlayerAdded:Connect(CreateESP)
+Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in ipairs(Players:GetPlayers()) do CreateESP(p) end
+
+-- Toggle UI
+createToggle(panels.Visuals, "Highlight Box ESP", false, function(state)
+	States.ESP_Highlight = state
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character then
+			local old = player.Character:FindFirstChild("HackerHighlight")
+			if state and not old then
+				local hl = Instance.new("Highlight")
+				hl.Name = "HackerHighlight"
+				hl.FillColor = Color3.fromRGB(255, 50, 50)
+				hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+				hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				hl.Parent = player.Character
+			elseif not state and old then old:Destroy() end
+		end
+	end
+end)
+
+createToggle(panels.Visuals, "Tracer Lines", false, function(state) States.ESP_Tracers = state end)
+createToggle(panels.Visuals, "Name & Health Tags", false, function(state) States.ESP_NameTags = state end)
+
+
+-- 5. MOVEMENT & 6. TELEPORT
+createButton(panels.Movement, "Speed 50", function()
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		LocalPlayer.Character.Humanoid.WalkSpeed = 50
+	end
+end)
+
+createButton(panels.Movement, "Reset Speed", function()
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		LocalPlayer.Character.Humanoid.WalkSpeed = 16
+	end
+end)
+
+--------------------------------------------------
+-- RENDER LOOP
+--------------------------------------------------
+RunService.RenderStepped:Connect(function()
+	if States.Aimbot then
+		local closest = GetClosestTarget()
+		if closest and closest.Character and closest.Character:FindFirstChild(States.TargetPart) then
+			local pos = closest.Character[States.TargetPart].Position
+			Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), SmoothnessMap[States.LockLevel] or 0.15)
+		end
+	end
+end)
+
+--------------------------------------------------
+-- SIDEBAR SETUP & TOGGLES
+--------------------------------------------------
+for index, tab in ipairs(tabs) do
+	createButton(sidebar, tab[1], function()
+		for _, panel in pairs(panels) do panel.Visible = false end
+		panels[tab[2]].Visible = true
+	end)
+	if index == 1 then panels[tab[2]].Visible = true end
+end
+
+local visible = true
+local function toggleUI()
+	visible = not visible
+	main.Visible = visible
+end
+
+toggle.MouseButton1Click:Connect(toggleUI)
+close.MouseButton1Click:Connect(toggleUI)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not processed and (input.KeyCode == Enum.KeyCode.Insert or input.KeyCode == Enum.KeyCode.RightControl) then
+		toggleUI()
+	end
+end)
