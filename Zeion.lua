@@ -1,4 +1,4 @@
--- Project Key System Zeion X Reaper 02
+-- Project Key System Zeion X Reaper 04
 
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
@@ -11,11 +11,11 @@ local DATABASE_URL = "https://script-reaper-default-rtdb.asia-southeast1.firebas
 local GETKEY_URL = "https://zeiongetkey.vercel.app/"
 local SAVE_FILE_NAME = "zeion_verified_key.txt"
 
--- 🔥 Script Here
-local function RunMainScript()
- print( Zeion X Reaper)
-	--loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
+
+local function RunMainScript()    
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
 end
+
 
 local function GetHWID()
     local success, hwidValue = pcall(function()
@@ -157,7 +157,6 @@ local function loadVerifiedKey()
 end
 
 
--- UI CONFIG & ICONS
 local Icons = {
 	Shield = "rbxassetid://105619007041452",
 	Loading = "rbxassetid://116535712789945",
@@ -244,7 +243,6 @@ local function SetBlur(enabled)
 		task.delay(0.4, function() blur:Destroy() end)
 	end
 end
-
 
 
 local ToastSystem = {ActiveToasts = {}, MaxToasts = 3, ToastSpacing = 10}
@@ -673,7 +671,7 @@ local function Build()
 			
 			task.delay(0.7, function() 
 				screen:Destroy() 
-				-- 🚀 รันสคริปต์หลักหลังจากปิดหน้าต่าง UI
+				
 				RunMainScript()
 			end)
 		else
@@ -743,6 +741,7 @@ if keyToCheck then
 		return
 	end
 end
+
 
 Build()
 
