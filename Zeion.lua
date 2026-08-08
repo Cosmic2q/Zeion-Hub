@@ -1,20 +1,17 @@
--- Project Key System Zeion X Reaper 05
+-- Project Key System Zeion X Reaper 07
 
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Lighting = game:GetService("Lighting")
 
-local DATABASE_URL = "https://script-reaper-default-rtdb.asia-southeast1.firebasedatabase.app/keys/"
 local GETKEY_URL = "https://zeiongetkey.vercel.app/"
-local SAVE_FILE_NAME = "zeion_verified_key.txt"
-
--- 🔥 Script Here
-local function RunMainScript()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/x2winter/Zeion-Blockspin-Free/refs/heads/main/Blockspin-Th.lua"))()
-end
+local DATABASE_URL = "https://script-reaper-default-rtdb.asia-southeast1.firebasedatabase.app/keys/"
+local SAVE_FILE_NAME = "zeion_saved_key.txt"
 
 local function GetHWID()
     local success, hwidValue = pcall(function()
@@ -29,7 +26,7 @@ local function GetHWID()
     if successClient and clientId then 
         return clientId 
     end
-    return tostring(Players.LocalPlayer.UserId)
+    return tostring(LocalPlayer.UserId)
 end
 
 local function SafeHttpRequest(requestData)
@@ -41,11 +38,14 @@ local function SafeHttpRequest(requestData)
     return nil
 end
 
+local function RunMainScript()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Swiftz007/Normal/refs/heads/main/kingxyz.lua"))()
+end
 
 local API = {}
 
 local AdminKeys = {
-    ["ZEION-ADMIN-676767"] = true,
+    ["ZEION-676767"] = true,
 }
 
 function API.get_key_link()
@@ -60,7 +60,6 @@ function API.check_key(key)
         }
     end
 
-    -- เช็ก Admin Key
     if AdminKeys[key] then
         return {
             valid = true,
@@ -69,7 +68,6 @@ function API.check_key(key)
         }
     end
 
-    -- ตรวจสอบรูปแบบคีย์ ZEION-XXX-XXX-XXX
     if not string.match(key, "^ZEION%-[A-Z0-9]+%-[A-Z0-9]+%-[A-Z0-9]+$") then
         return {
             valid = false,
@@ -77,11 +75,8 @@ function API.check_key(key)
         }
     end
 
-    -- ดึงข้อมูลจาก Firebase
     local requestUrl = DATABASE_URL .. key .. ".json"
-    local success, responseRaw = pcall(function()
-        return game:HttpGet(requestUrl)
-    end)
+    local success, responseRaw = pcall(function() return game:HttpGet(requestUrl) end)
 
     if not success or not responseRaw or responseRaw == "null" then
         return {
@@ -90,10 +85,7 @@ function API.check_key(key)
         }
     end
 
-    local decodeSuccess, keyData = pcall(function()
-        return HttpService:JSONDecode(responseRaw)
-    end)
-
+    local decodeSuccess, keyData = pcall(function() return HttpService:JSONDecode(responseRaw) end)
     if not decodeSuccess or not keyData then
         return {
             valid = false,
@@ -101,7 +93,6 @@ function API.check_key(key)
         }
     end
 
-    -- ตรวจสอบวันหมดอายุ
     if keyData.expiresAt and keyData.expiresAt > 0 then
         if (os.time() * 1000) > keyData.expiresAt then
             return {
@@ -111,7 +102,6 @@ function API.check_key(key)
         end
     end
 
-    -- ตรวจสอบ HWID
     local currentHWID = GetHWID()
     if not keyData.hwid or keyData.hwid == "" then
         SafeHttpRequest({
@@ -132,7 +122,6 @@ function API.check_key(key)
         message = "KEY_VALID"
     }
 end
-
 
 local function hasFileSystemSupport()
     local hasWrite = pcall(function() return type(writefile) == "function" end)
@@ -155,38 +144,33 @@ local function loadVerifiedKey()
     return content
 end
 
-
--- UI CONFIG & ICONS
 local Icons = {
-	Shield = "rbxassetid://105619007041452",
-	Loading = "rbxassetid://116535712789945",
 	Lock = "rbxassetid://114355063515473",
 	Key = "rbxassetid://93569468678423",
-	Check = "rbxassetid://119783053916823",
 	CheckCircle = "rbxassetid://10709790644",
 	XCircle = "rbxassetid://10747384394",
 	Warning = "rbxassetid://130226573962640",
 	Info = "rbxassetid://94529541997278",
 	Copy = "rbxassetid://107485544510830",
 	ErrorFolder = "rbxassetid://113312905787220",
-	JunkieNewIcon = "rbxassetid://109388351613854"
+	ZeionIcon = "rbxassetid://131279093559313"
 }
 
 local Configuration = {
-	ScreenGuiName = "ZeionKeySystemUI",
-	Window = {Size = UDim2.new(0, 333, 0, 370)},
+	ScreenGuiName = "ZeionHubHorizontalKeyUI",
+	Window = {Size = UDim2.new(0, 520, 0, 255)},
 	Colors = {
-		Bg = Color3.fromRGB(12, 12, 12),
-		Primary = Color3.fromRGB(59, 130, 246),
-		PrimaryDark = Color3.fromRGB(37, 99, 235),
-		StatusIdle = Color3.fromRGB(249, 115, 22),
+		Bg = Color3.fromRGB(3, 7, 18),
+		Primary = Color3.fromRGB(37, 99, 235),
+		PrimaryDark = Color3.fromRGB(29, 78, 216),
+		StatusIdle = Color3.fromRGB(59, 130, 246),
 		StatusSuccess = Color3.fromRGB(16, 185, 129),
 		StatusError = Color3.fromRGB(239, 68, 68),
 		StatusVerifying = Color3.fromRGB(59, 130, 246),
 		TextMain = Color3.fromRGB(255, 255, 255),
 		TextSec = Color3.fromRGB(161, 161, 170),
 		TextMuted = Color3.fromRGB(113, 113, 122),
-		Border = Color3.fromRGB(255, 255, 255),
+		Border = Color3.fromRGB(59, 130, 246),
 		TrafficRed = Color3.fromRGB(255, 95, 87),
 		TrafficYellow = Color3.fromRGB(254, 188, 46),
 		TrafficGreen = Color3.fromRGB(40, 200, 64),
@@ -194,9 +178,8 @@ local Configuration = {
 		Error = Color3.fromRGB(245, 70, 90),
 		Warning = Color3.fromRGB(255, 200, 50)
 	},
-	BorderTransparency = 0.15,
 	Animations = { Fast = 0.2, Medium = 0.4, Bounce = 0.6 },
-	Fonts = { Title = 24, Subtitle = 12, Button = 14, Body = 13, Small = 11 }
+	Fonts = { Body = 13, Small = 11 }
 }
 
 local Utils = {}
@@ -243,8 +226,6 @@ local function SetBlur(enabled)
 		task.delay(0.4, function() blur:Destroy() end)
 	end
 end
-
-
 
 local ToastSystem = {ActiveToasts = {}, MaxToasts = 3, ToastSpacing = 10}
 
@@ -351,9 +332,6 @@ ToastSystem.RepositionToasts = function()
 	end
 end
 
--- ===================================================
--- 🏗️ MAIN UI BUILDER
--- ===================================================
 local function Build()
 	local parent = game:GetService("CoreGui")
 	local old = parent:FindFirstChild(Configuration.ScreenGuiName)
@@ -364,26 +342,21 @@ local function Build()
 	screen.ResetOnSpawn = false
 	screen.Parent = parent
 
-	local overlay = Instance.new("Frame")
-	overlay.Size = UDim2.fromScale(1, 1)
-	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
-	overlay.BackgroundTransparency = 1
-	overlay.Parent = screen
 	SetBlur(true)
 
 	local main = Instance.new("Frame")
 	main.Size = Configuration.Window.Size
-	main.Position = UDim2.new(0.5, 0, 0.5, 0)
+	main.Position = UDim2.new(0.5, 0, 0.5, 40)
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = Configuration.Colors.Bg
 	main.BackgroundTransparency = 0.2
 	main.ClipsDescendants = true
 	main.Parent = screen
 	Utils.Round(main, 24)
-	Utils.Stroke(main, Color3.new(1, 1, 1), 1, 0.92)
+	Utils.Stroke(main, Configuration.Colors.Border, 1, 0.85)
 
 	local bar = Instance.new("Frame")
-	bar.Size = UDim2.new(1, 0, 0, 54)
+	bar.Size = UDim2.new(1, 0, 0, 40)
 	bar.BackgroundTransparency = 1
 	bar.Parent = main
 
@@ -414,78 +387,82 @@ local function Build()
 	titleText.BackgroundTransparency = 1
 	titleText.Parent = bar
 
-	local content = Instance.new("ScrollingFrame")
-	content.Size = UDim2.new(1, 0, 1, -54)
-	content.Position = UDim2.new(0, 0, 0, 54)
-	content.BackgroundTransparency = 1
-	content.ScrollBarThickness = 0
-	content.CanvasSize = UDim2.new(0, 0, 0, 440)
-	content.Parent = main
+	local body = Instance.new("Frame")
+	body.Size = UDim2.new(1, -36, 1, -50)
+	body.Position = UDim2.new(0, 18, 0, 45)
+	body.BackgroundTransparency = 1
+	body.Parent = main
 
-	local list = Instance.new("UIListLayout")
-	list.Padding = UDim.new(0, 24)
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.Parent = content
-
-	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0, 5)
-	pad.Parent = content
+	local leftCol = Instance.new("Frame")
+	leftCol.Size = UDim2.new(0, 150, 1, 0)
+	leftCol.BackgroundTransparency = 1
+	leftCol.Parent = body
 
 	local logoContainer = Instance.new("Frame")
-	logoContainer.Size = UDim2.fromOffset(80, 80)
-	logoContainer.BackgroundColor3 = Configuration.Colors.Primary
-	logoContainer.Parent = content
-	Utils.Round(logoContainer, 20)
+	logoContainer.Size = UDim2.fromOffset(72, 72)
+	logoContainer.Position = UDim2.new(0.5, -36, 0, 10)
+	logoContainer.BackgroundTransparency = 1
+	logoContainer.BorderSizePixel = 0
+	logoContainer.Parent = leftCol
 
 	local sIcon = Instance.new("ImageLabel")
 	sIcon.Size = UDim2.fromScale(1, 1)
 	sIcon.Position = UDim2.fromScale(0.5, 0.5)
 	sIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-	sIcon.Image = Icons.JunkieNewIcon
+	sIcon.Image = Icons.ZeionIcon
 	sIcon.ScaleType = Enum.ScaleType.Fit
 	sIcon.BackgroundTransparency = 1
 	sIcon.Parent = logoContainer
 
-	local titleArea = Instance.new("Frame")
-	titleArea.Size = UDim2.new(1, 0, 0, 44)
-	titleArea.BackgroundTransparency = 1
-	titleArea.Parent = content
-
 	local mainTitle = Instance.new("TextLabel")
-	mainTitle.Size = UDim2.new(1, 0, 0, 26)
+	mainTitle.Size = UDim2.new(1, 0, 0, 22)
+	mainTitle.Position = UDim2.new(0, 0, 0, 90)
 	mainTitle.Text = "Zeion Hub"
 	mainTitle.TextColor3 = Color3.new(1, 1, 1)
-	mainTitle.TextSize = 26
+	mainTitle.TextSize = 18
 	mainTitle.Font = Enum.Font.GothamBold
+	mainTitle.TextXAlignment = Enum.TextXAlignment.Center
 	mainTitle.BackgroundTransparency = 1
-	mainTitle.Parent = titleArea
+	mainTitle.Parent = leftCol
 
 	local subTitle = Instance.new("TextLabel")
-	subTitle.Size = UDim2.new(1, 0, 0, 16)
-	subTitle.Position = UDim2.fromOffset(0, 28)
-	subTitle.Text = "Zeion Hub | Key System"
+	subTitle.Size = UDim2.new(1, 0, 0, 14)
+	subTitle.Position = UDim2.new(0, 0, 0, 114)
+	subTitle.Text = "Key System"
 	subTitle.TextColor3 = Configuration.Colors.TextSec
-	subTitle.TextSize = 13
+	subTitle.TextSize = 12
 	subTitle.Font = Enum.Font.Gotham
+	subTitle.TextXAlignment = Enum.TextXAlignment.Center
 	subTitle.BackgroundTransparency = 1
-	subTitle.Parent = titleArea
+	subTitle.Parent = leftCol
+
+	local rightCol = Instance.new("Frame")
+	rightCol.Size = UDim2.new(1, -165, 1, 0)
+	rightCol.Position = UDim2.new(0, 165, 0, 0)
+	rightCol.BackgroundTransparency = 1
+	rightCol.Parent = body
+
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.Padding = UDim.new(0, 10)
+	listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	listLayout.Parent = rightCol
 
 	local statusCard = Instance.new("Frame")
-	statusCard.Size = UDim2.new(0, 280, 0, 68)
+	statusCard.Size = UDim2.new(1, 0, 0, 48)
 	statusCard.BackgroundColor3 = Color3.new(1, 1, 1)
 	statusCard.BackgroundTransparency = 0.96
-	statusCard.Parent = content
-	Utils.Round(statusCard, 16)
+	statusCard.Parent = rightCol
+	Utils.Round(statusCard, 12)
 	Utils.Stroke(statusCard, Color3.new(1, 1, 1), 1, 0.95)
 
 	local sIconBg = Instance.new("Frame")
-	sIconBg.Size = UDim2.fromOffset(42, 42)
-	sIconBg.Position = UDim2.new(0, 14, 0.5, 0)
+	sIconBg.Size = UDim2.fromOffset(32, 32)
+	sIconBg.Position = UDim2.new(0, 10, 0.5, 0)
 	sIconBg.AnchorPoint = Vector2.new(0, 0.5)
 	sIconBg.BackgroundColor3 = Configuration.Colors.StatusIdle
 	sIconBg.BackgroundTransparency = 0.9
 	sIconBg.Parent = statusCard
-	Utils.Round(sIconBg, 21)
+	Utils.Round(sIconBg, 16)
 
 	local sImg = Instance.new("ImageLabel")
 	sImg.Size = UDim2.fromScale(0.5, 0.5)
@@ -497,38 +474,38 @@ local function Build()
 	sImg.Parent = sIconBg
 
 	local sLabel = Instance.new("TextLabel")
-	sLabel.Size = UDim2.new(1, -70, 0, 14)
-	sLabel.Position = UDim2.fromOffset(70, 16)
+	sLabel.Size = UDim2.new(1, -50, 0, 12)
+	sLabel.Position = UDim2.fromOffset(50, 8)
 	sLabel.Text = "CURRENT STATUS"
 	sLabel.TextColor3 = Configuration.Colors.TextMuted
-	sLabel.TextSize = 10
+	sLabel.TextSize = 9
 	sLabel.Font = Enum.Font.GothamBold
 	sLabel.TextXAlignment = Enum.TextXAlignment.Left
 	sLabel.BackgroundTransparency = 1
 	sLabel.Parent = statusCard
 
 	local sValue = Instance.new("TextLabel")
-	sValue.Size = UDim2.new(1, -70, 0, 20)
-	sValue.Position = UDim2.fromOffset(70, 32)
+	sValue.Size = UDim2.new(1, -50, 0, 18)
+	sValue.Position = UDim2.fromOffset(50, 21)
 	sValue.Text = "No key detected"
 	sValue.TextColor3 = Configuration.Colors.StatusIdle
-	sValue.TextSize = 15
+	sValue.TextSize = 13
 	sValue.Font = Enum.Font.GothamMedium
 	sValue.TextXAlignment = Enum.TextXAlignment.Left
 	sValue.BackgroundTransparency = 1
 	sValue.Parent = statusCard
 
 	local inputFrame = Instance.new("Frame")
-	inputFrame.Size = UDim2.new(0, 280, 0, 52)
+	inputFrame.Size = UDim2.new(1, 0, 0, 44)
 	inputFrame.BackgroundColor3 = Color3.new(1, 1, 1)
 	inputFrame.BackgroundTransparency = 0.975
-	inputFrame.Parent = content
-	Utils.Round(inputFrame, 14)
+	inputFrame.Parent = rightCol
+	Utils.Round(inputFrame, 12)
 	local iStroke = Utils.Stroke(inputFrame, Color3.new(1, 1, 1), 1, 0.95)
 
 	local kIcon = Instance.new("ImageLabel")
-	kIcon.Size = UDim2.fromOffset(18, 18)
-	kIcon.Position = UDim2.new(0, 14, 0.5, 0)
+	kIcon.Size = UDim2.fromOffset(16, 16)
+	kIcon.Position = UDim2.new(0, 12, 0.5, 0)
 	kIcon.AnchorPoint = Vector2.new(0, 0.5)
 	kIcon.Image = Icons.Key
 	kIcon.ImageColor3 = Configuration.Colors.TextMuted
@@ -536,20 +513,20 @@ local function Build()
 	kIcon.Parent = inputFrame
 
 	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, -85, 1, 0)
-	box.Position = UDim2.fromOffset(45, 0)
+	box.Size = UDim2.new(1, -68, 1, 0)
+	box.Position = UDim2.fromOffset(38, 0)
 	box.Text = ""
 	box.PlaceholderText = "Enter your key..."
 	box.TextColor3 = Color3.new(1, 1, 1)
-	box.TextSize = 14
+	box.TextSize = 13
 	box.Font = Enum.Font.Gotham
 	box.BackgroundTransparency = 1
 	box.TextXAlignment = Enum.TextXAlignment.Left
 	box.Parent = inputFrame
 
 	local paste = Instance.new("ImageButton")
-	paste.Size = UDim2.fromOffset(18, 18)
-	paste.Position = UDim2.new(1, -14, 0.5, 0)
+	paste.Size = UDim2.fromOffset(16, 16)
+	paste.Position = UDim2.new(1, -12, 0.5, 0)
 	paste.AnchorPoint = Vector2.new(1, 0.5)
 	paste.Image = Icons.Copy
 	paste.ImageColor3 = Configuration.Colors.TextMuted
@@ -557,34 +534,33 @@ local function Build()
 	paste.Parent = inputFrame
 
 	local btnRow = Instance.new("Frame")
-	btnRow.Size = UDim2.new(0, 280, 0, 50)
+	btnRow.Size = UDim2.new(1, 0, 0, 42)
 	btnRow.BackgroundTransparency = 1
-	btnRow.Parent = content
-
-	local redeem = Instance.new("TextButton")
-	redeem.Size = UDim2.new(0.5, -8, 1, 0)
-	redeem.BackgroundColor3 = Configuration.Colors.Primary
-	redeem.Text = "Redeem"
-	redeem.TextColor3 = Color3.new(1, 1, 1)
-	redeem.Font = Enum.Font.GothamBold
-	redeem.TextSize = 14
-	redeem.AutoButtonColor = false
-	redeem.Parent = btnRow
-	Utils.Round(redeem, 14)
+	btnRow.Parent = rightCol
 
 	local getKey = Instance.new("TextButton")
-	getKey.Size = UDim2.new(0.5, -8, 1, 0)
-	getKey.Position = UDim2.new(0.5, 8, 0, 0)
-	getKey.BackgroundColor3 = Color3.new(1, 1, 1)
-	getKey.BackgroundTransparency = 0.955
+	getKey.Size = UDim2.new(0.5, -4, 1, 0)
+	getKey.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
 	getKey.Text = "Get Key"
 	getKey.TextColor3 = Color3.new(1, 1, 1)
 	getKey.Font = Enum.Font.GothamBold
-	getKey.TextSize = 14
+	getKey.TextSize = 13
 	getKey.AutoButtonColor = false
 	getKey.Parent = btnRow
-	Utils.Round(getKey, 14)
+	Utils.Round(getKey, 12)
 	Utils.Stroke(getKey, Color3.new(1, 1, 1), 1, 0.94)
+
+	local verifyBtn = Instance.new("TextButton")
+	verifyBtn.Size = UDim2.new(0.5, -4, 1, 0)
+	verifyBtn.Position = UDim2.new(0.5, 4, 0, 0)
+	verifyBtn.BackgroundColor3 = Configuration.Colors.Primary
+	verifyBtn.Text = "Verify"
+	verifyBtn.TextColor3 = Color3.new(1, 1, 1)
+	verifyBtn.Font = Enum.Font.GothamBold
+	verifyBtn.TextSize = 13
+	verifyBtn.AutoButtonColor = false
+	verifyBtn.Parent = btnRow
+	Utils.Round(verifyBtn, 12)
 
 	local function ApplyHover(btn)
 		local baseColor = btn.BackgroundColor3
@@ -595,7 +571,7 @@ local function Build()
 			Utils.Tween(btn, {BackgroundColor3 = baseColor}, 0.2)
 		end)
 	end
-	ApplyHover(redeem)
+	ApplyHover(verifyBtn)
 	ApplyHover(getKey)
 
 	local spinConnection
@@ -611,7 +587,7 @@ local function Build()
 
 		if state == "verifying" then
 			color = Configuration.Colors.StatusVerifying
-			icon = Icons.Loading
+			icon = Icons.Key
 			text = "Verifying access"
 			spinConnection = RunService.Heartbeat:Connect(function(dt)
 				if sImg and sImg.Parent then
@@ -645,34 +621,29 @@ local function Build()
 		sImg.Image = icon
 	end
 
-	-- ปุ่ม Redeem (ยืนยันคีย์)
-	redeem.MouseButton1Click:Connect(function()
+	verifyBtn.MouseButton1Click:Connect(function()
 		local userKey = box.Text:gsub("%s+", "")
 		SetStatus("verifying")
-		redeem.Text = "..."
-		redeem.Active = false
+		verifyBtn.Text = "..."
+		verifyBtn.Active = false
 
 		local result = API.check_key(userKey)
 
-		redeem.Active = true
-		redeem.Text = "Redeem"
+		verifyBtn.Active = true
+		verifyBtn.Text = "Verify"
 
 		if result and result.valid then
 			saveVerifiedKey(userKey)
 			getgenv().SCRIPT_KEY = userKey
-			if result.admin then
-				getgenv().IS_ADMIN = true
-			end
 
 			SetStatus("success")
 			ToastSystem.Create(screen, "Access granted!", "success")
 			task.wait(0.8)
 			SetBlur(false)
-			Utils.Tween(main, {Position = UDim2.new(0.5, 0, 0.5, 100), BackgroundTransparency = 1}, 0.7, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
+			Utils.Tween(main, {Position = UDim2.new(0.5, 0, 0.5, 60), BackgroundTransparency = 1}, 0.7, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
 			
 			task.delay(0.7, function() 
 				screen:Destroy() 
-				-- 🚀 รันสคริปต์หลักหลังจากปิดหน้าต่าง UI
 				RunMainScript()
 			end)
 		else
@@ -681,7 +652,6 @@ local function Build()
 		end
 	end)
 
-	-- ปุ่ม Get Key
 	getKey.MouseButton1Click:Connect(function()
 		if setclipboard then
 			setclipboard(API.get_key_link())
@@ -691,7 +661,6 @@ local function Build()
 		end
 	end)
 
-	-- ปุ่ม Paste
 	paste.MouseButton1Click:Connect(function()
 		local clipText = getclipboard and getclipboard() or nil
 		if clipText and clipText ~= "" then
@@ -702,7 +671,6 @@ local function Build()
 		end
 	end)
 
-	-- Drag System
 	local dragging, dragStart, startPos
 	bar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -726,7 +694,6 @@ local function Build()
 	return screen
 end
 
-
 local savedKey = loadVerifiedKey()
 local keyToCheck = savedKey or getgenv().SCRIPT_KEY
 
@@ -734,13 +701,10 @@ if keyToCheck then
 	local result = API.check_key(keyToCheck)
 	if result and result.valid then
 		getgenv().SCRIPT_KEY = keyToCheck
-		if result.admin then
-			getgenv().IS_ADMIN = true
-		end
-		
 		RunMainScript()
 		return
 	end
 end
 
 Build()
+
