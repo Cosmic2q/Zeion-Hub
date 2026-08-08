@@ -1,13 +1,15 @@
 -- Credit : Reaper Hub
+-- REAPER HUB (SUPER STABLE VERSION)
+repeat task.wait() until game:IsLoaded()
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera or workspace:WaitForChild("Camera")
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+local CoreGui = game:GetService("CoreGui")
 
--- Check Drawing API
-local DrawingLib = (type(Drawing) ~= "nil" and Drawing.new)
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local DrawingLib = (type(Drawing) ~= "nil")
 
 --------------------------------------------------
 -- 1. SETTINGS & STATES
@@ -21,38 +23,43 @@ local SmoothnessMap = {[1] = 0.15, [2] = 0.40, [3] = 1.00}
 local ESP_Players = {}
 
 --------------------------------------------------
--- 2. UI CONSTRUCTION (สร้างก่อนเพื่อให้รันติดแน่นอน)
+-- 2. UI CONSTRUCTION (เปลี่ยนไปใช้ CoreGui)
 --------------------------------------------------
-local gui = Instance.new("ScreenGui", PlayerGui)
+-- ลบของเก่าออกก่อนรันใหม่
+if CoreGui:FindFirstChild("ReaperProject_Final") then
+    CoreGui:FindFirstChild("ReaperProject_Final"):Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
 gui.Name = "ReaperProject_Final"
+gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
+gui.Parent = CoreGui -- เปลี่ยนจาก PlayerGui เป็น CoreGui
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromOffset(620, 440)
-main.Position = UDim2.new(0.5, -310, 0.5, -220)
+main.Size = UDim2.fromOffset(550, 350)
+main.Position = UDim2.new(0.5, -275, 0.5, -175)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 main.BorderSizePixel = 0
 main.Active = true
-main.Draggable = true -- ถ้าลากไม่ได้ให้เปลี่ยนเป็นสคริปต์ลากมือ
+main.Draggable = true 
 
-local mainCorner = Instance.new("UICorner", main)
-mainCorner.CornerRadius = UDim.new(0, 15)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 
+-- Sidebar & Content
 local sidebar = Instance.new("Frame", main)
-sidebar.Size = UDim2.new(0, 140, 1, -60)
-sidebar.Position = UDim2.fromOffset(15, 50)
+sidebar.Size = UDim2.new(0, 130, 1, -50)
+sidebar.Position = UDim2.fromOffset(10, 40)
 sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0, 10)
-local sideLayout = Instance.new("UIListLayout", sidebar)
-sideLayout.Padding = UDim.new(0, 5)
+Instance.new("UICorner", sidebar)
 
 local content = Instance.new("Frame", main)
-content.Size = UDim2.new(1, -180, 1, -60)
-content.Position = UDim2.fromOffset(165, 50)
+content.Size = UDim2.new(1, -160, 1, -50)
+content.Position = UDim2.fromOffset(150, 40)
 content.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-Instance.new("UICorner", content).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", content)
 
--- FOV Circle
+-- FOV Circle (Using Frame for compatibility)
 local fovCircle = Instance.new("Frame", gui)
 fovCircle.Size = UDim2.fromOffset(States.FOVRadius*2, States.FOVRadius*2)
 fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -60,7 +67,7 @@ fovCircle.BackgroundTransparency = 1
 fovCircle.Visible = false
 local fovStroke = Instance.new("UIStroke", fovCircle)
 fovStroke.Color = Color3.fromRGB(255, 50, 50)
-fovStroke.Thickness = 1.5
+fovStroke.Thickness = 1
 Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
 
 --------------------------------------------------
@@ -74,7 +81,7 @@ local function GetClosestTarget()
             local pos, onScreen = Camera:WorldToViewportPoint(p.Character[States.TargetPart].Position)
             if onScreen then
                 local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                if dist < (States.UseFOV and States.FOVRadius or math.huge) and dist < shortestDist then
+                if dist < (States.UseFOV and States.FOVRadius or 1000) and dist < shortestDist then
                     shortestDist, closest = dist, p
                 end
             end
@@ -92,7 +99,6 @@ local function UpdateHitboxes()
                     root.Size = Vector3.new(States.HitboxSize, States.HitboxSize, States.HitboxSize)
                     root.Transparency = States.HitboxTransparency
                     root.Color = Color3.fromRGB(255, 0, 0)
-                    root.CanCollide = false
                 else
                     root.Size = Vector3.new(2, 2, 1)
                     root.Transparency = 1
@@ -102,53 +108,28 @@ local function UpdateHitboxes()
     end
 end
 
-local function CreateESP(p)
-    if not DrawingLib or p == LocalPlayer or ESP_Players[p] then return end
-    pcall(function()
-        ESP_Players[p] = {
-            Tracer = Drawing.new("Line"),
-            Name = Drawing.new("Text")
-        }
-        local obj = ESP_Players[p]
-        obj.Tracer.Visible = false; obj.Tracer.Thickness = 1; obj.Tracer.Color = Color3.new(1,0,0)
-        obj.Name.Visible = false; obj.Name.Size = 14; obj.Name.Center = true; obj.Name.Outline = true
-    end)
-end
-
-local function UpdateESP()
-    for p, obj in pairs(ESP_Players) do
-        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
-            if onScreen then
-                if States.ESP_Tracers then
-                    obj.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-                    obj.Tracer.To = Vector2.new(pos.X, pos.Y); obj.Tracer.Visible = true
-                else obj.Tracer.Visible = false end
-                if States.ESP_NameTags then
-                    obj.Name.Position = Vector2.new(pos.X, pos.Y - 30); obj.Name.Text = p.Name; obj.Name.Visible = true
-                else obj.Name.Visible = false end
-            else obj.Tracer.Visible = false; obj.Name.Visible = false end
-        else obj.Tracer.Visible = false; obj.Name.Visible = false end
-    end
-end
-
 --------------------------------------------------
--- 4. UI BUILDER (Tabs & Toggles)
+-- 4. UI BUILDER
 --------------------------------------------------
 local panels = {}
 local function createTab(name, id)
     local p = Instance.new("ScrollingFrame", content)
     p.Size = UDim2.new(1, -10, 1, -10)
+    p.Position = UDim2.fromOffset(5, 5)
     p.BackgroundTransparency = 1
     p.Visible = false
+    p.CanvasSize = UDim2.new(0,0,2,0)
+    p.ScrollBarThickness = 2
     Instance.new("UIListLayout", p).Padding = UDim.new(0, 5)
     panels[id] = p
     
     local b = Instance.new("TextButton", sidebar)
-    b.Size = UDim2.new(1, 0, 0, 35)
+    b.Size = UDim2.new(1, -10, 0, 35)
+    b.Position = UDim2.fromOffset(5,0)
     b.Text = name
     b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
     b.TextColor3 = Color3.white
+    b.Font = Enum.Font.Code
     Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function()
         for _, v in pairs(panels) do v.Visible = false end
@@ -163,6 +144,7 @@ local function createToggle(panel, text, callback)
     b.Text = text .. " : OFF"
     b.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
     b.TextColor3 = Color3.white
+    b.Font = Enum.Font.Code
     Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function()
         state = not state
@@ -178,20 +160,20 @@ createTab("👁 VISUALS", "vis")
 panels.aim.Visible = true
 
 createToggle(panels.aim, "Aimbot", function(s) States.Aimbot = s fovCircle.Visible = s end)
-createToggle(panels.hb, "Hitbox", function(s) States.HitboxEnabled = s end)
-createToggle(panels.vis, "Tracers", function(s) States.ESP_Tracers = s end)
+createToggle(panels.hb, "Hitbox Expander", function(s) States.HitboxEnabled = s end)
+createToggle(panels.vis, "Show FOV Circle", function(s) States.UseFOV = s fovCircle.Visible = States.Aimbot and s end)
 
 --------------------------------------------------
--- 5. LOOPS & SETUP
+-- 5. LOOPS
 --------------------------------------------------
 RunService.RenderStepped:Connect(function()
     if States.Aimbot then
         local t = GetClosestTarget()
         if t and t.Character then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, t.Character[States.TargetPart].Position), SmoothnessMap[States.LockLevel])
+            local targetPos = t.Character[States.TargetPart].Position
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), SmoothnessMap[States.LockLevel])
         end
     end
-    if DrawingLib then pcall(UpdateESP) end
     if fovCircle.Visible then
         local m = UserInputService:GetMouseLocation()
         fovCircle.Position = UDim2.fromOffset(m.X, m.Y)
@@ -199,16 +181,15 @@ RunService.RenderStepped:Connect(function()
 end)
 
 RunService.Heartbeat:Connect(function()
-    pcall(UpdateHitboxes)
+    if States.HitboxEnabled then pcall(UpdateHitboxes) end
 end)
 
+-- Toggle Menu Button
 local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.fromOffset(40, 40)
+toggleBtn.Size = UDim2.fromOffset(45, 45)
 toggleBtn.Position = UDim2.new(0, 10, 0.5, 0)
-toggleBtn.Text = "MENU"
+toggleBtn.Text = "R"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleBtn.TextColor3 = Color3.white
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
 toggleBtn.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
-
-for _, p in ipairs(Players:GetPlayers()) do CreateESP(p) end
-Players.PlayerAdded:Connect(CreateESP)
-
-print("Project By Reaper Hub")
